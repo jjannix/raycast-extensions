@@ -26,10 +26,12 @@ import {
   getFormatTitle,
   getFormatValue,
   getytdlPath,
+  isAudioOnlyFormat,
   isMac,
   isValidHHMM,
   isValidUrl,
   parseHHMM,
+  parseFormatValue,
   sanitizeVideoTitle,
 } from "./utils.js";
 import { Video } from "./types.js";
@@ -59,14 +61,19 @@ export default function DownloadVideo() {
     onSubmit: async (values) => {
       if (!values.format) return;
       const options = ["-o", path.join(downloadPath, `${video?.title || "video"} (%(id)s).%(ext)s`)];
-      const [downloadFormat, recodeFormat] = values.format.split("#");
+      const { downloadFormat, recodeFormat } = parseFormatValue(values.format);
 
       options.push("--ffmpeg-location", ffmpegPath);
       options.push("--format", downloadFormat);
       options.push("--recode-video", recodeFormat);
+      options.push("--extractor-args", "youtube:player_client=android_vr");
+
+      // Determine if this is an audio-only download
+      const isAudioOnly = isAudioOnlyFormat(values.format);
+      const mediaType = isAudioOnly ? "Audio" : "Video";
 
       const toast = await showToast({
-        title: "Downloading Video",
+        title: `Downloading ${mediaType}`,
         style: Toast.Style.Animated,
         message: "0%",
       });
@@ -75,6 +82,19 @@ export default function DownloadVideo() {
       options.push("--print", "after_move:filepath");
 
       const process = spawn(ytdlPath, [...options, values.url]);
+
+      // Add stop download action
+      toast.primaryAction = {
+        title: "Stop Download",
+        shortcut: { modifiers: ["cmd"], key: "." },
+        onAction: () => {
+          process.kill();
+          toast.title = "Download Cancelled";
+          toast.style = Toast.Style.Failure;
+          toast.message = "Download was stopped";
+          toast.primaryAction = undefined;
+        },
+      };
 
       let filePath = "";
 
@@ -86,7 +106,7 @@ export default function DownloadVideo() {
           const currentProgress = Number(toast.message?.replace("%", ""));
 
           if (progress < currentProgress) {
-            toast.title = "Formatting Video";
+            toast.title = `Formatting ${mediaType}`;
           }
           toast.message = `${Math.floor(progress)}%`;
         }
@@ -115,7 +135,7 @@ export default function DownloadVideo() {
           return;
         }
 
-        toast.title = "Video Downloaded";
+        toast.title = `${mediaType} Downloaded`;
         toast.style = Toast.Style.Success;
         toast.message = video?.title;
 
@@ -174,9 +194,14 @@ export default function DownloadVideo() {
 
       const result = await execa(
         ytdlPath,
-        [forceIpv4 ? "--force-ipv4" : "", "--dump-json", "--format-sort=resolution,ext,tbr", url].filter((x) =>
-          Boolean(x),
-        ),
+        [
+          forceIpv4 ? "--force-ipv4" : "",
+          "--dump-json",
+          "--format-sort=resolution,ext,tbr",
+          "--extractor-args",
+          "youtube:player_client=android_vr",
+          url,
+        ].filter((x) => Boolean(x)),
       );
       const data = JSON.parse(result.stdout) as Video;
 
@@ -268,7 +293,7 @@ export default function DownloadVideo() {
           <ActionPanel.Section>
             <Action.SubmitForm
               icon={Icon.Download}
-              title="Download Video"
+              title={values.format && isAudioOnlyFormat(values.format) ? "Download Audio" : "Download Video"}
               onSubmit={(values) => {
                 setWarning("");
                 handleSubmit({ ...values, copyToClipboard: false } as DownloadOptions);

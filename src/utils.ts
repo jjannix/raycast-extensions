@@ -179,10 +179,26 @@ export const getFormats = (video?: Video) => {
 };
 
 export const getFormatValue = (format: Format) => {
-  const { hasAcodec } = hasCodec(format);
+  const { hasAcodec, hasVcodec } = hasCodec(format);
   const audio = hasAcodec ? "" : "+bestaudio";
   const targetExt = `#${format.ext}`;
-  return format.format_id + audio + targetExt;
+  const type = hasAcodec && !hasVcodec ? "audio" : "video";
+  return `${type}|${format.format_id}${audio}${targetExt}`;
+};
+
+export const parseFormatValue = (formatValue: string) => {
+  const [typeAndFormat, recodeFormat] = formatValue.split("#");
+  const parts = typeAndFormat.split("|");
+
+  if (parts.length === 2) {
+    return { type: parts[0], downloadFormat: parts[1], recodeFormat };
+  }
+
+  return { type: "video", downloadFormat: parts[0], recodeFormat };
+};
+
+export const isAudioOnlyFormat = (formatValue: string) => {
+  return formatValue.startsWith("audio|");
 };
 
 export const getFormatTitle = (format: Format) =>

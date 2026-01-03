@@ -8,6 +8,7 @@ import {
   getffmpegPath,
   getffprobePath,
   sanitizeVideoTitle,
+  parseFormatValue,
 } from "../utils.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -39,9 +40,14 @@ export default async function tool(input: Input) {
   // Get video info and available formats
   const videoInfo = await execa(
     ytdlPath,
-    [forceIpv4 ? "--force-ipv4" : "", "--dump-json", "--format-sort=resolution,ext,tbr", input.url].filter((x) =>
-      Boolean(x),
-    ),
+    [
+      forceIpv4 ? "--force-ipv4" : "",
+      "--dump-json",
+      "--format-sort=resolution,ext,tbr",
+      "--extractor-args",
+      "youtube:player_client=android_vr",
+      input.url,
+    ].filter((x) => Boolean(x)),
   );
 
   const video = JSON.parse(videoInfo.stdout) as Video;
@@ -59,10 +65,11 @@ export default async function tool(input: Input) {
   const bestFormat = formats["Video"][0]; // First format in Video category is best quality
   if (bestFormat) {
     const formatValue = getFormatValue(bestFormat);
-    const [downloadFormat, recodeFormat] = formatValue.split("#");
+    const { downloadFormat, recodeFormat } = parseFormatValue(formatValue);
     options.push("--ffmpeg-location", ffmpegPath);
     options.push("--format", downloadFormat);
     options.push("--recode-video", recodeFormat);
+    options.push("--extractor-args", "youtube:player_client=android_vr");
   }
 
   options.push("--print", "after_move:filepath");
