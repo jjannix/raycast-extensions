@@ -30,6 +30,7 @@ import {
   isMac,
   isValidHHMM,
   isValidUrl,
+  formatHHMM,
   parseHHMM,
   parseFormatValue,
   sanitizeVideoTitle,
@@ -37,6 +38,7 @@ import {
 import { Video } from "./types.js";
 import Installer from "./views/installer.js";
 import Updater from "./views/updater.js";
+import BulkDownloader from "./views/bulk-downloader.js";
 
 const {
   downloadPath,
@@ -301,6 +303,7 @@ export default function DownloadVideo() {
             />
           </ActionPanel.Section>
           <ActionPanel.Section>
+            <Action.Push icon={Icon.Download} title="Bulk Download" target={<BulkDownloader />} />
             <Action.Push icon={Icon.Hammer} title="Update Libraries" target={<Updater />} />
           </ActionPanel.Section>
         </ActionPanel>
@@ -313,12 +316,31 @@ export default function DownloadVideo() {
       }
     >
       <Form.Description title="Title" text={video?.title ?? "Video not found"} />
+      {video && (
+        <>
+          <Form.Description title="Uploader" text={video.uploader} />
+          <Form.Description
+            title="Upload Date"
+            text={
+              video.upload_date
+                ? `${video.upload_date.slice(0, 4)}-${video.upload_date.slice(4, 6)}-${video.upload_date.slice(6, 8)}`
+                : "N/A"
+            }
+          />
+          <Form.Description
+            title="Duration"
+            text={video.duration ? formatHHMM(video.duration) : "N/A"}
+          />
+          <Form.Description title="View Count" text={video.view_count?.toLocaleString() || "N/A"} />
+        </>
+      )}
       <Form.TextField
         {...itemProps.url}
         autoFocus
         title="URL"
         placeholder="https://www.youtube.com/watch?v=ykaj0pS4A1A"
       />
+
       {warning && <Form.Description text={warning} />}
       {video && (
         <Form.Dropdown {...itemProps.format} title="Format">

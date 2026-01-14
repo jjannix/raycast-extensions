@@ -16,4 +16,11 @@ export type Video = {
   duration: number;
   live_status: string;
   formats: Format[];
+  uploader: string;
+  upload_date: string;
+  view_count: number;
+  webpage_url: string;
+  extractor_key: string;
+  thumbnail: string;
+  description: string;
 };
